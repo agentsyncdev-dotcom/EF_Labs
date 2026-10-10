@@ -9,6 +9,6 @@
         public long Phone { get; set; }
         public DateTime DateOfBirth { get; set; }
         public bool IsActive { get; set; }
-        public List<Order> Orders { get; set; }
+        public virtual List<Order> Orders { get; set; }
     }
 }

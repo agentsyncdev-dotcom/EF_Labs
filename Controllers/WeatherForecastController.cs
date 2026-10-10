@@ -1,5 +1,8 @@
+using EF_Lab.Data;
 using EF_Lab.Models;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using System.Diagnostics;
 
 namespace EF_Lab.Controllers
 {
@@ -37,7 +40,7 @@ namespace EF_Lab.Controllers
         [HttpGet("{id}")]
         public IActionResult GetCustomer(int id)
         {
-            var customer = _context.Customers.FirstOrDefault(c => c.Id == id);
+            var customer = _context.Customers.FirstOrDefault(c => c.CustomerId == id);
             if (customer == null)
             {
                 return NotFound();
@@ -57,7 +60,7 @@ namespace EF_Lab.Controllers
         [HttpPut("{id}")]
         public IActionResult UpdateCustomer(int id, Customer updatedCustomer)
         {
-            var customer = _context.Customers.FirstOrDefault(c => c.Id == id);
+            var customer = _context.Customers.FirstOrDefault(c => c.CustomerId == id);
             if (customer == null)
             {
                 return NotFound();
@@ -75,7 +78,7 @@ namespace EF_Lab.Controllers
         [HttpPatch("{id}/Email")]
         public IActionResult PatchCustomer(int id, [FromBody] string email)
         {
-            var customer = _context.Customers.FirstOrDefault(c => c.Id == id);
+            var customer = _context.Customers.FirstOrDefault(c => c.CustomerId == id);
             if (customer == null)
             {
                 return NotFound();
@@ -85,6 +88,63 @@ namespace EF_Lab.Controllers
             
             _context.SaveChanges();
             return Ok(customer);
+        }
+
+        // Insert customers and measure query performance WITH and WITHOUT AsNoTracking
+        [HttpGet("measure-astracking")]
+        public async Task<IActionResult> MeasureAsNoTracking([FromQuery] int insertCount = 5000)
+        {
+            // Insert records
+            if (insertCount > 0)
+            {
+                var list = new List<Customer>(insertCount);
+                for (int i = 0; i < insertCount; i++)
+                {
+                    list.Add(new Customer
+                    {
+                        FirstName = $"First_{DateTime.UtcNow.Ticks % int.MaxValue}_{i}",
+                        LastName = $"Last_{i}",
+                        Email = $"user{i}@example.com",
+                        Phone = 1000000000 + i,
+                        DateOfBirth = DateTime.UtcNow.AddYears(-30).AddDays(i % 365),
+                        IsActive = true
+                    });
+                }
+
+                await _context.Customers.AddRangeAsync(list);
+                await _context.SaveChangesAsync();
+                _context.ChangeTracker.Clear();
+            }
+
+            // Warm up
+            await _context.Customers.Take(1).ToListAsync();
+            _context.ChangeTracker.Clear();
+
+            var sw = new Stopwatch();
+
+            // Query WITHOUT AsNoTracking (entities will be tracked)
+            sw.Start();
+            var tracked = await _context.Customers.ToListAsync();
+            sw.Stop();
+            var withoutTrackingMs = sw.Elapsed.TotalMilliseconds;
+            var trackedCount = tracked.Count;
+
+            // Clear tracker so second query isn't affected
+            _context.ChangeTracker.Clear();
+
+            // Query WITH AsNoTracking (read-only)
+            sw.Restart();
+            var notTracked = await _context.Customers.AsNoTracking().ToListAsync();
+            sw.Stop();
+            var withAsNoTrackingMs = sw.Elapsed.TotalMilliseconds;
+            var notTrackedCount = notTracked.Count;
+
+            return Ok(new
+            {
+                seeded = insertCount,
+                withoutAsNoTracking = new { count = trackedCount, elapsedMs = withoutTrackingMs },
+                withAsNoTracking = new { count = notTrackedCount, elapsedMs = withAsNoTrackingMs }
+            });
         }
 
     }

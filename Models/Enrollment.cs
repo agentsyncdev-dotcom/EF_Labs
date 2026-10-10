@@ -6,11 +6,15 @@ public class Enrollment
 {
     public int StudentID { get; set; }
 
-    public Student Student { get; set; }
+    // navigation property should be virtual for lazy loading
+    // navigation property should be nullable for model-binding when creating nested objects
+    public virtual Student Student { get; set; }
 
     public int CourseID { get; set; }
 
-    public Course Course { get; set; }
+    // navigation property should be virtual for lazy loading
+    // navigation property should be nullable for model-binding when creating nested objects
+    public virtual Course Course { get; set; }
 
     public DateTime EnrollmentDate { get; set; }
 }

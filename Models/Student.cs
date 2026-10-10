@@ -12,7 +12,8 @@ public class Student
 
     public string Email { get; set; }
 
-    public ICollection<Enrollment> Enrollments { get; set; } = new List<Enrollment>();
+    // Make navigation property virtual to enable lazy loading
+    public virtual ICollection<Enrollment> Enrollments { get; set; }
 }
 
 
